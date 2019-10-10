@@ -22,6 +22,7 @@ For my personal VMs I have the following:
 | ----:    | :---:       | :---:         | 
 | backend  | 10.132.0.42 | 34.77.105.216 | 
 | database | 10.132.0.43 | 35.233.19.119 | 
+
 ACHTUNG: Following our settings, the external IP is "ephemeral": this means  they will change when
 we restart the server; this will be covered later in static IP section. 
 We can access them by clicking the SSH button on the left.
@@ -70,7 +71,8 @@ To
 (INCOMPLETE: google the title! and maybe change it...)
 We set the backend ip to a static value:
 
-| name  | External Address | 
+| name  | External Address |
+| --- | --- | 
 | n5602 |  104.199.48.249  |
 
 
@@ -95,6 +97,32 @@ loopback address: 127.0.0.1:3000 with:
 
     $ docker run -e DB_NAME=wordpress -e DB_USER=dbuser -e DB_PASSWORD=dbpass -e DB_HOST=10.132.0.43
     -p 127.0.0.1:3000:80 --name=backend -d eu.gcr.io/dev2ops/n5602-lapsrv:1.0
+
+Now, we are going to obtain the a SSL certificate through a letsencrypt plugin, also known as
+"authenticator" because it is used to authenticate whether a server should be issued a certificate.
+In order for it to work, let us stop first the HAProxy service with:
+
+    $ sudo service haproxy stop
+Verify that port 80 is not in use with:
+
+    $ netstat -na | grep ':80.*LISTEN'
+which should return no output. To obtain the certificate let us run the Standalone plugin (certbot):
+
+    $ sudo certbot certonly --standalone --preferred-challenges http --http-01-port 80 -d n5602.my-project.dev 
+Where I used my student number, make sure that you substitute yours. You will be asked to provide
+your email for renewal and security notices; and after it to agree with the _Terms of service_.
+
+The certificates and your private keys  are placed in the directory `/etc/letsencrypt/archive/` and
+symbolic links should have been automatically created to folder `/etc/letsencrypt/live/`; this
+folders belong to root, so you need sudo to access them. HAProxy will need  to use the
+`fullchain.pem` and the `privkey.pem` to transmit encrypted traffic; let us combine these into a
+single file. Create a folder to store this file with:
+
+    $ sudo mkdir -p /etc/haproxy/certs
+and let's combine the two files with:
+
+    $ DOMAIN='n5602.my-project.dev' sudo -E bash -c 'cat /etc/letsencrypt/live/$DOMAIN/fullchain.pem /etc/letsencrypt/live/$DOMAIN/privkey.pem > /etc/haproxy/certs/$DOMAIN.pem'
+ONCE AGAIN: make sure to initialize the variable DOMAIN with your own personal domain 
 Let's create a configuration file for HAProxy as follows:
 
     $ sudo nano /etc/haproxy.cfg
@@ -131,3 +159,4 @@ With the following content:
 http://oskarhane.com/haproxy-as-a-static-reverse-proxy-for-docker-containers/
 https://certbot.eff.org/instructions
 https://serversforhackers.com/c/letsencrypt-with-haproxy
+https://www.digitalocean.com/community/tutorials/how-to-implement-ssl-termination-with-haproxy-on-ubuntu-14-04
