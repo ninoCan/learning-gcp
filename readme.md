@@ -78,6 +78,7 @@ We set the backend ip to a static value:
 
 ## Securing the webpage with SSL certificate
 
+### Setting things up
 We will obtain the SSL certificates through [Let's
 Encrypt](https://letsencrypt.org/getting-started/).
 Let us install the letsencrypt(Certbot) client:
@@ -97,6 +98,8 @@ loopback address: 127.0.0.1:3000 with:
 
     $ docker run -e DB_NAME=wordpress -e DB_USER=dbuser -e DB_PASSWORD=dbpass -e DB_HOST=10.132.0.43
     -p 127.0.0.1:3000:80 --name=backend -d eu.gcr.io/dev2ops/n5602-lapsrv:1.0
+
+### Obtain certificates
 
 Now, we are going to obtain the a SSL certificate through a letsencrypt plugin, also known as
 "authenticator" because it is used to authenticate whether a server should be issued a certificate.
@@ -122,7 +125,10 @@ single file. Create a folder to store this file with:
 and let's combine the two files with:
 
     $ DOMAIN='n5602.my-project.dev' sudo -E bash -c 'cat /etc/letsencrypt/live/$DOMAIN/fullchain.pem /etc/letsencrypt/live/$DOMAIN/privkey.pem > /etc/haproxy/certs/$DOMAIN.pem'
-ONCE AGAIN: make sure to initialize the variable DOMAIN with your own personal domain 
+ONCE AGAIN: make sure to initialize the variable DOMAIN with your own personal domain. Then, remove
+permission to access this file to any other user but root with:
+
+    $ sudo chmod -R go-rwx /etc/haproxy/certs
 Let's create a configuration file for HAProxy as follows:
 
     $ sudo nano /etc/haproxy.cfg
